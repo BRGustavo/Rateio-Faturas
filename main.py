@@ -21,6 +21,7 @@ class Application:
                   'AG Taquarivai', 'Ainda não definido']
 
         self.sheet_database = './Lista.xlsx'
+        self.boleto_total = 0
 
         self.master = master
         self.master.title("Rateio de linhas Vivo - Gustavo")
@@ -113,6 +114,10 @@ class Application:
 
                 # Extrai o texto da página
                 text = page.extract_text()
+                match_total = re.search(r'TOTAL A PAGAR \d{1,3}(?:\.\d{3})*(?:,\d{2})', text)
+
+                if match_total is not None:
+                    self.boleto_total = match_total.group(0).replace("TOTAL A PAGAR", "").strip()
 
                 match_internet = re.findall(r'(\d{2}-\d{5}-\d{4})\s+(\d+)MB\s+(\d+)KB', text)
                 for encontrado in match_internet:
@@ -203,7 +208,16 @@ class Application:
             planilha[f'A{linha+3}'].font = Font(name='Calibri', size=11, bold=True, color="FFFFFF")
             planilha[f'A{linha+3}'].alignment = Alignment(horizontal='center', vertical='center')
 
-        
+        # Formatar parte de soma (Tabela Rateio)
+        linha = len(self.locais)+3
+        for letra in string.ascii_uppercase[1:4]:
+            planilha[f"{letra}{linha}"].value = f"=soma(Numeros!{letra}3:Numeros!{letra}{linha-1})"
+            planilha[f"{letra}{linha}"].border = border
+            planilha[f"{letra}{linha}"].fill = PatternFill(start_color="00b050", end_color="00b050", fill_type='solid')
+            planilha[f"{letra}{linha}"].font = Font(name='Calibri', size=11, bold=True, color="FFFFFF")
+            planilha[f"{letra}{linha}"].alignment = Alignment(horizontal='center', vertical='center')
+
+
         cells_range = planilha[f"B3:D{len(self.locais)+2}"]
         for linha in cells_range:
             for celula in linha:
@@ -269,14 +283,14 @@ class Application:
         worksheet.save(path_name)
         self.status_label.config(text="Extração concluída com sucesso!")
 
-        self.comiple_info(limite_horizontal_letra, limite_vertical, path_name)
+        self.compile_info(limite_horizontal_letra, limite_vertical, path_name)
 
     def load_numers_database(self, file_path='./Lista.xlsx'):
         df = pd.read_excel(self.sheet_database, sheet_name='Relação Números')
         for index, row in df.iterrows():
             self.database_numeros[str(row["Nº"]).strip()] = [row["Agência"], row['Local']]
 
-    def comiple_info(self, limite_horizontal, limite_vertical, file_path='numero.xlsx'):
+    def compile_info(self, limite_horizontal, limite_vertical, file_path='numero.xlsx'):
             def find_and_replace(key, qtd, valor, internet):
                 workbook = openpyxl.load_workbook(file_path)
                 planilha = workbook.active
